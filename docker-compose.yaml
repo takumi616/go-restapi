@@ -1,0 +1,32 @@
+services:
+  golang:
+    image: golang
+    build: 
+      args:
+        - target=deploy
+    environment:
+      PORT_NUMBER: ${PORT_NUMBER}	
+      MYSQL_DB_HOST: mysql
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_PORT: ${MYSQL_PORT}
+    volumes:
+      - .:/app
+    ports:
+      - "127.0.0.1:6600:${PORT_NUMBER}"
+    depends_on:
+      - mysql
+  mysql:
+    image: mysql:latest
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    ports:
+      - "3306:${MYSQL_PORT}"  
+    volumes:
+      - mysql-db:/var/lib/mysql
+volumes:
+  mysql-db:
