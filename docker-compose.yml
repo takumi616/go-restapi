@@ -1,0 +1,9 @@
+services:
+  app:
+    build:
+      context: .
+      target: final
+    environment:
+      - APP_PORT=${APP_PORT_CONTAINER}
+    ports:
+      - "${APP_PORT_HOST}:${APP_PORT_CONTAINER}"
