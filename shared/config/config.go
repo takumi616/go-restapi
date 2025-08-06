@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"time"
 )
 
@@ -23,6 +24,19 @@ func getDurationEnvValue(key string) (time.Duration, error) {
 	val, err := time.ParseDuration(strVal)
 	if err != nil {
 		return 0, fmt.Errorf("invalid duration format: '%s': %w", strVal, err)
+	}
+	return val, nil
+}
+
+func getIntEnvValue(key string) (int, error) {
+	strVal, err := getEnvValue(key)
+	if err != nil {
+		return 0, err
+	}
+
+	val, err := strconv.Atoi(strVal)
+	if err != nil {
+		return 0, fmt.Errorf("invalid int format: '%s': %w", strVal, err)
 	}
 	return val, nil
 }

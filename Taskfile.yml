@@ -1,0 +1,44 @@
+# https://taskfile.dev
+
+version: '3'
+
+dotenv: ['.env']
+
+tasks:
+  run:
+    desc: Start Golang API server
+    cmds:
+      - task: migration
+      - task: build-app
+      - task: up-app
+
+  up-postgres:
+    desc: Start postgres container
+    cmds:
+      - docker compose up -d postgres
+
+  migration:
+    desc: Run database migrations inside the postgres container
+    deps: [up-postgres]
+    cmds:
+      - docker compose exec postgres sh -c "until pg_isready; do sleep 1; done"
+      - migrate -path ./migration -database ${DB_MIGRATION_URL} up
+
+  build-app:
+    desc: Build golang docker image
+    cmds:
+      - docker compose build app
+
+  up-app:
+    desc: start golang app container
+    cmds: 
+      - docker compose up app
+
+  stop:
+    cmds:
+      - docker compose down
+
+  prune:
+    desc: Remove all stopped containers, networks, volumes, and dangling images.
+    cmds:
+      - docker system prune -af
