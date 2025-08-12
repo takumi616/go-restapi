@@ -1,4 +1,4 @@
-package web_test
+package web
 
 import (
 	"context"
@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/takumi616/go-restapi/infrastructure/web"
 	"github.com/takumi616/go-restapi/shared/config"
 )
 
@@ -31,7 +30,7 @@ func TestRunShutdownGracefully(t *testing.T) {
 		},
 	}
 
-	server := web.NewServer(appConf, mux)
+	server := NewServer(appConf, mux)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -54,7 +53,7 @@ func TestRunListenerError(t *testing.T) {
 		Timeout: config.TimeoutConfig{},
 	}
 
-	server := web.NewServer(appConf, http.NewServeMux())
+	server := NewServer(appConf, http.NewServeMux())
 	err := server.Run(context.Background())
 
 	assert.Error(t, err)

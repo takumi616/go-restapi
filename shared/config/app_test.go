@@ -1,4 +1,4 @@
-package config_test
+package config
 
 import (
 	"fmt"
@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/takumi616/go-restapi/shared/config"
 )
 
 var appEnvKeyList = []string{
@@ -33,7 +32,7 @@ func TestNewAppConfigNormal(t *testing.T) {
 		t.Setenv(key, inputList[i])
 	}
 
-	appCfg, err := config.NewAppConfig()
+	appCfg, err := NewAppConfig()
 
 	assert.NoError(t, err)
 	assert.NotNil(t, appCfg)
@@ -52,7 +51,7 @@ func TestNewAppConfigEmptyPort(t *testing.T) {
 		t.Setenv(key, inputList[i])
 	}
 
-	appCfg, err := config.NewAppConfig()
+	appCfg, err := NewAppConfig()
 
 	assert.Nil(t, appCfg)
 	assert.Error(t, err)
@@ -67,7 +66,7 @@ func TestNewAppConfigInvalidDuration(t *testing.T) {
 		t.Setenv(key, inputList[i])
 	}
 
-	appCfg, err := config.NewAppConfig()
+	appCfg, err := NewAppConfig()
 
 	assert.Nil(t, appCfg)
 	assert.Error(t, err)
