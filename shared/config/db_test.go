@@ -1,4 +1,4 @@
-package config_test
+package config
 
 import (
 	"fmt"
@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/takumi616/go-restapi/shared/config"
 )
 
 var dbEnvKeyList = []string{
@@ -42,7 +41,7 @@ func TestNewDatabaseConfigNormal(t *testing.T) {
 		t.Setenv(key, inputList[i])
 	}
 
-	dbCfg, err := config.NewDatabaseConfig()
+	dbCfg, err := NewDatabaseConfig()
 
 	assert.NoError(t, err)
 	assert.NotNil(t, dbCfg)
@@ -70,7 +69,7 @@ func TestNewDatabaseConfigEmptyDriver(t *testing.T) {
 		t.Setenv(key, inputList[i])
 	}
 
-	dbCfg, err := config.NewDatabaseConfig()
+	dbCfg, err := NewDatabaseConfig()
 
 	assert.Nil(t, dbCfg)
 	assert.Error(t, err)
@@ -88,7 +87,7 @@ func TestNewDatabaseConfigInvalidInt(t *testing.T) {
 		t.Setenv(key, inputList[i])
 	}
 
-	dbCfg, err := config.NewDatabaseConfig()
+	dbCfg, err := NewDatabaseConfig()
 
 	assert.Nil(t, dbCfg)
 	assert.Error(t, err)
