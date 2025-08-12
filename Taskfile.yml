@@ -37,8 +37,3 @@ tasks:
   stop:
     cmds:
       - docker compose down
-
-  prune:
-    desc: Remove all stopped containers, networks, volumes, and dangling images.
-    cmds:
-      - docker system prune -af
