@@ -57,6 +57,26 @@ func (h *TaskHandler) AddTask(w http.ResponseWriter, r *http.Request) {
 
 	helper.WriteResponse(
 		ctx, w, http.StatusCreated,
-		response.ToAddTaskRes(added),
+		response.ToTaskRes(added),
 	)
+}
+
+func (h *TaskHandler) GetTaskList(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	taskList, err := h.usecase.GetTaskList(ctx)
+	if err != nil {
+		helper.WriteResponse(
+			ctx, w, http.StatusInternalServerError,
+			response.ErrResponse{Message: err.Error()},
+		)
+		return
+	}
+
+	taskResList := []*response.TaskRes{}
+	for _, task := range taskList {
+		taskResList = append(taskResList, response.ToTaskRes(task))
+	}
+
+	helper.WriteResponse(ctx, w, http.StatusOK, taskResList)
 }

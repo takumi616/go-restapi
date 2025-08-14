@@ -17,3 +17,7 @@ func NewTaskGateway(repository TaskRepository) *TaskGateway {
 func (g *TaskGateway) AddTask(ctx context.Context, task *domain.Task) (*domain.Task, error) {
 	return g.repository.Insert(ctx, task)
 }
+
+func (g *TaskGateway) GetTaskList(ctx context.Context) ([]*domain.Task, error) {
+	return g.repository.SelectAll(ctx)
+}
