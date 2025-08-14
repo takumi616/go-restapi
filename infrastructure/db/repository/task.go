@@ -54,3 +54,16 @@ func (r *TaskRepository) SelectAll(ctx context.Context) ([]*domain.Task, error) 
 
 	return taskList, nil
 }
+
+func (r *TaskRepository) SelectById(ctx context.Context, id string) (*domain.Task, error) {
+	var taskRes model.TaskResult
+	err := r.Db.QueryRowContext(
+		ctx, "SELECT * from tasks WHERE id = $1", id,
+	).Scan(&taskRes.Id, &taskRes.Title, &taskRes.Description, &taskRes.Status)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to copy columns: %w", err)
+	}
+
+	return model.ToDomain(&taskRes), nil
+}

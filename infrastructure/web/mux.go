@@ -21,6 +21,7 @@ func (s ServeMux) RegisterHandler() http.Handler {
 
 	mux.HandleFunc("POST /tasks", s.TaskHandler.AddTask)
 	mux.HandleFunc("GET /tasks", s.TaskHandler.GetTaskList)
+	mux.HandleFunc("GET /tasks/{id}", s.TaskHandler.GetTaskById)
 
 	return mux
 }

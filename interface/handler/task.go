@@ -80,3 +80,19 @@ func (h *TaskHandler) GetTaskList(w http.ResponseWriter, r *http.Request) {
 
 	helper.WriteResponse(ctx, w, http.StatusOK, taskResList)
 }
+
+func (h *TaskHandler) GetTaskById(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	id := r.PathValue("id")
+	task, err := h.usecase.GetTaskById(ctx, id)
+	if err != nil {
+		helper.WriteResponse(
+			ctx, w, http.StatusInternalServerError,
+			response.ErrResponse{Message: err.Error()},
+		)
+		return
+	}
+
+	helper.WriteResponse(ctx, w, http.StatusOK, response.ToTaskRes(task))
+}
