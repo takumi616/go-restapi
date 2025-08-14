@@ -9,4 +9,5 @@ import (
 type TaskGateway interface {
 	AddTask(ctx context.Context, task *domain.Task) (*domain.Task, error)
 	GetTaskList(ctx context.Context) ([]*domain.Task, error)
+	GetTaskById(ctx context.Context, id string) (*domain.Task, error)
 }

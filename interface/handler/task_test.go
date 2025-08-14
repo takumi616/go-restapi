@@ -2,6 +2,8 @@ package handler
 
 import (
 	"bytes"
+	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -156,6 +158,71 @@ func TestGetTaskList(t *testing.T) {
 
 			sut := NewTaskHandler(mockTaskUsecase)
 			sut.GetTaskList(w, r)
+
+			actualRes := w.Result()
+			helper.AssertResponse(t,
+				actualRes, tt.expected.status, helper.LoadFile(t, tt.expected.resFile),
+			)
+		})
+	}
+}
+
+func TestGetTaskById(t *testing.T) {
+	type expected struct {
+		status  int
+		resFile string
+	}
+
+	testTable := map[string]struct {
+		id       string
+		task     *domain.Task
+		err      error
+		expected expected
+	}{
+		"ok": {
+			id: "f299e7ed-a22a-4494-b59e-21bb91fdae3b",
+			task: &domain.Task{
+				Id:          "f299e7ed-a22a-4494-b59e-21bb91fdae3b",
+				Title:       "test title",
+				Description: "test description",
+				Status:      false,
+			},
+			err: nil,
+			expected: expected{
+				status:  http.StatusOK,
+				resFile: "test/data/get_task_by_id/ok_res.json.golden",
+			},
+		},
+		"badId": {
+			id:   "abc123",
+			task: nil,
+			err:  errors.New("failed to copy columns: pq: invalid input syntax for type uuid: \"abc123\""),
+			expected: expected{
+				status:  http.StatusInternalServerError,
+				resFile: "test/data/get_task_by_id/bad_id_res.json.golden",
+			},
+		},
+	}
+
+	for n, tt := range testTable {
+		tt := tt
+
+		t.Run(n, func(t *testing.T) {
+			t.Parallel()
+
+			w := httptest.NewRecorder()
+			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/tasks/%s", tt.id), nil)
+			r.SetPathValue("id", tt.id)
+
+			mockCtrl := gomock.NewController(t)
+			defer mockCtrl.Finish()
+
+			mockTaskUsecase := mock.NewMockTaskUsecase(mockCtrl)
+			mockTaskUsecase.EXPECT().GetTaskById(r.Context(), tt.id).
+				Return(tt.task, tt.err)
+
+			sut := NewTaskHandler(mockTaskUsecase)
+			sut.GetTaskById(w, r)
 
 			actualRes := w.Result()
 			helper.AssertResponse(t,

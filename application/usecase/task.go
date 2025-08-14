@@ -26,3 +26,7 @@ func (u *TaskUsecase) AddTask(ctx context.Context, task *domain.Task) (*domain.T
 func (u *TaskUsecase) GetTaskList(ctx context.Context) ([]*domain.Task, error) {
 	return u.gateway.GetTaskList(ctx)
 }
+
+func (u *TaskUsecase) GetTaskById(ctx context.Context, id string) (*domain.Task, error) {
+	return u.gateway.GetTaskById(ctx, id)
+}
