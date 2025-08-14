@@ -98,3 +98,69 @@ func TestAddTask(t *testing.T) {
 		})
 	}
 }
+
+func TestGetTaskList(t *testing.T) {
+	type expected struct {
+		status  int
+		resFile string
+	}
+
+	testTable := map[string]struct {
+		taskList []*domain.Task
+		expected expected
+	}{
+		"ok": {
+			taskList: []*domain.Task{
+				{
+					Id:          "f299e7ed-a22a-4494-b59e-21bb91fdae3b",
+					Title:       "test title",
+					Description: "test description",
+					Status:      false,
+				},
+				{
+					Id:          "4d758d63-5c4f-4bef-9a80-d5837c324a07",
+					Title:       "test title2",
+					Description: "test description2",
+					Status:      false,
+				},
+			},
+			expected: expected{
+				status:  http.StatusOK,
+				resFile: "test/data/get_task_list/ok_res.json.golden",
+			},
+		},
+		"empty": {
+			taskList: []*domain.Task{},
+			expected: expected{
+				status:  http.StatusOK,
+				resFile: "test/data/get_task_list/empty_res.json.golden",
+			},
+		},
+	}
+
+	for n, tt := range testTable {
+		tt := tt
+
+		t.Run(n, func(t *testing.T) {
+			t.Parallel()
+
+			w := httptest.NewRecorder()
+			r := httptest.NewRequest(http.MethodGet, "/tasks", nil)
+
+			mockCtrl := gomock.NewController(t)
+			defer mockCtrl.Finish()
+
+			mockTaskUsecase := mock.NewMockTaskUsecase(mockCtrl)
+			mockTaskUsecase.EXPECT().GetTaskList(r.Context()).
+				Return(tt.taskList, nil)
+
+			sut := NewTaskHandler(mockTaskUsecase)
+			sut.GetTaskList(w, r)
+
+			actualRes := w.Result()
+			helper.AssertResponse(t,
+				actualRes, tt.expected.status, helper.LoadFile(t, tt.expected.resFile),
+			)
+		})
+	}
+}

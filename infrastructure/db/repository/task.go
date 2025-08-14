@@ -22,7 +22,7 @@ func NewTaskRepository(db *sql.DB) *TaskRepository {
 func (r *TaskRepository) Insert(ctx context.Context, task *domain.Task) (*domain.Task, error) {
 	param := model.ToInsertTaskParam(task)
 
-	var result model.InsertTaskResult
+	var result model.TaskResult
 	err := r.Db.QueryRowContext(
 		ctx,
 		"INSERT INTO tasks(title, description, status) VALUES($1, $2, $3) RETURNING *",
@@ -34,4 +34,23 @@ func (r *TaskRepository) Insert(ctx context.Context, task *domain.Task) (*domain
 	}
 
 	return model.ToDomain(&result), nil
+}
+
+func (r *TaskRepository) SelectAll(ctx context.Context) ([]*domain.Task, error) {
+	rows, err := r.Db.QueryContext(ctx, "SELECT * from tasks")
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute query: %w", err)
+	}
+	defer rows.Close()
+
+	var taskList []*domain.Task
+	for rows.Next() {
+		var taskResult model.TaskResult
+		if err := rows.Scan(&taskResult.Id, &taskResult.Title, &taskResult.Description, &taskResult.Status); err != nil {
+			return nil, fmt.Errorf("failed to copy columns: %w", err)
+		}
+		taskList = append(taskList, model.ToDomain(&taskResult))
+	}
+
+	return taskList, nil
 }

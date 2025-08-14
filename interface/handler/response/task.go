@@ -2,15 +2,15 @@ package response
 
 import "github.com/takumi616/go-restapi/domain"
 
-type AddTaskRes struct {
+type TaskRes struct {
 	Id          string `json:"id"`
 	Title       string `json:"title"`
 	Description string `json:"description"`
 	Status      bool   `json:"status"`
 }
 
-func ToAddTaskRes(task *domain.Task) *AddTaskRes {
-	return &AddTaskRes{
+func ToTaskRes(task *domain.Task) *TaskRes {
+	return &TaskRes{
 		task.Id, task.Title, task.Description, task.Status,
 	}
 }
