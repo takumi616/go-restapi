@@ -14,10 +14,10 @@ func AssertJson(t *testing.T, expected, actual []byte) {
 
 	var jsonExpected, jsonActual any
 	if err := json.Unmarshal(expected, &jsonExpected); err != nil {
-		t.Fatalf("Failed to unmarshal expected %q: %v", expected, err)
+		t.Fatalf("failed to unmarshal expected %q: %v", expected, err)
 	}
 	if err := json.Unmarshal(actual, &jsonActual); err != nil {
-		t.Fatalf("Failed to unmarshal actual %q: %v", actual, err)
+		t.Fatalf("failed to unmarshal actual %q: %v", actual, err)
 	}
 
 	if diff := cmp.Diff(jsonActual, jsonExpected); diff != "" {
