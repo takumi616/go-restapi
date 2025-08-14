@@ -4,8 +4,6 @@ import (
 	"context"
 	"log"
 
-	_ "github.com/lib/pq"
-
 	"github.com/takumi616/go-restapi/application/usecase"
 	"github.com/takumi616/go-restapi/infrastructure/db"
 	"github.com/takumi616/go-restapi/infrastructure/db/repository"
