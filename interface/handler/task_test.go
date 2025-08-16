@@ -231,3 +231,93 @@ func TestGetTaskById(t *testing.T) {
 		})
 	}
 }
+
+func TestUpdateTask(t *testing.T) {
+	type expected struct {
+		status  int
+		resFile string
+	}
+
+	type mockData struct {
+		inputTask, returnedTask *domain.Task
+	}
+
+	testTable := map[string]struct {
+		id       string
+		reqFile  string
+		expected expected
+		mockData mockData
+	}{
+		"ok": {
+			id:      "6a30b9b0-18bf-47b4-bd23-d72726864def",
+			reqFile: "test/data/update_task/ok_req.json.golden",
+			expected: expected{
+				status:  http.StatusOK,
+				resFile: "test/data/update_task/ok_res.json.golden",
+			},
+			mockData: mockData{
+				inputTask: &domain.Task{Description: "update test description", Status: true},
+				returnedTask: &domain.Task{
+					Id:    "6a30b9b0-18bf-47b4-bd23-d72726864def",
+					Title: "test title", Description: "update test description",
+					Status: true,
+				},
+			},
+		},
+		"unmarshalFail": {
+			reqFile: "test/data/update_task/unmarshal_fail_req.json.golden",
+			expected: expected{
+				status:  http.StatusInternalServerError,
+				resFile: "test/data/update_task/unmarshal_fail_res.json.golden",
+			},
+			mockData: mockData{
+				inputTask:    nil,
+				returnedTask: nil,
+			},
+		},
+		"badRequest": {
+			reqFile: "test/data/update_task/bad_req.json.golden",
+			expected: expected{
+				status:  http.StatusBadRequest,
+				resFile: "test/data/update_task/bad_res.json.golden",
+			},
+			mockData: mockData{
+				inputTask:    nil,
+				returnedTask: nil,
+			},
+		},
+	}
+
+	for n, tt := range testTable {
+		tt := tt
+
+		t.Run(n, func(t *testing.T) {
+			t.Parallel()
+
+			w := httptest.NewRecorder()
+			r := httptest.NewRequest(
+				http.MethodPatch,
+				fmt.Sprintf("/tasks/%s", tt.id),
+				bytes.NewReader(helper.LoadFile(t, tt.reqFile)),
+			)
+			r.SetPathValue("id", tt.id)
+
+			mockCtrl := gomock.NewController(t)
+			defer mockCtrl.Finish()
+
+			mockTaskUsecase := mock.NewMockTaskUsecase(mockCtrl)
+			if n == "ok" {
+				mockTaskUsecase.EXPECT().UpdateTask(r.Context(), tt.id, tt.mockData.inputTask).
+					Return(tt.mockData.returnedTask, nil)
+			}
+
+			sut := NewTaskHandler(mockTaskUsecase)
+			sut.UpdateTask(w, r)
+
+			actualRes := w.Result()
+			helper.AssertResponse(t,
+				actualRes, tt.expected.status, helper.LoadFile(t, tt.expected.resFile),
+			)
+		})
+	}
+}
