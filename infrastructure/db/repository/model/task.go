@@ -29,9 +29,10 @@ type TaskResult struct {
 }
 
 func ToDomain(result *TaskResult) *domain.Task {
-	task := domain.NewTask(result.Title, result.Description)
-	task.Id = result.Id
-	task.Status = result.Status
-
-	return task
+	return &domain.Task{
+		Id:          result.Id,
+		Title:       result.Title,
+		Description: result.Description,
+		Status:      result.Status,
+	}
 }

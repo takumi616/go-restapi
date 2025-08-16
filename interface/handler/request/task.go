@@ -7,6 +7,13 @@ type AddTaskReq struct {
 	Description string `json:"description" validate:"required"`
 }
 
+func (a *AddTaskReq) ToDomain() *domain.Task {
+	return &domain.Task{
+		Title:       a.Title,
+		Description: a.Description,
+	}
+}
+
 type UpdateTaskReq struct {
 	Description string `json:"description" validate:"required"`
 	Status      *bool  `json:"status" validate:"required"`

@@ -6,10 +6,3 @@ type Task struct {
 	Description string
 	Status      bool
 }
-
-func NewTask(title, description string) *Task {
-	return &Task{
-		Title:       title,
-		Description: description,
-	}
-}
