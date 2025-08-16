@@ -25,3 +25,7 @@ func (g *TaskGateway) GetTaskList(ctx context.Context) ([]*domain.Task, error) {
 func (g *TaskGateway) GetTaskById(ctx context.Context, id string) (*domain.Task, error) {
 	return g.repository.SelectById(ctx, id)
 }
+
+func (g *TaskGateway) UpdateTask(ctx context.Context, id string, task *domain.Task) (*domain.Task, error) {
+	return g.repository.Update(ctx, id, task)
+}

@@ -30,3 +30,7 @@ func (u *TaskUsecase) GetTaskList(ctx context.Context) ([]*domain.Task, error) {
 func (u *TaskUsecase) GetTaskById(ctx context.Context, id string) (*domain.Task, error) {
 	return u.gateway.GetTaskById(ctx, id)
 }
+
+func (u *TaskUsecase) UpdateTask(ctx context.Context, id string, task *domain.Task) (*domain.Task, error) {
+	return u.gateway.UpdateTask(ctx, id, task)
+}

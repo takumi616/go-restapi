@@ -67,3 +67,20 @@ func (r *TaskRepository) SelectById(ctx context.Context, id string) (*domain.Tas
 
 	return model.ToDomain(&taskRes), nil
 }
+
+func (r *TaskRepository) Update(ctx context.Context, id string, task *domain.Task) (*domain.Task, error) {
+	param := model.ToUpdateTaskParam(task)
+
+	var result model.TaskResult
+	err := r.Db.QueryRowContext(
+		ctx,
+		"UPDATE tasks SET description=$1, status=$2 WHERE id=$3 RETURNING *",
+		param.Description, param.Status, id,
+	).Scan(&result.Id, &result.Title, &result.Description, &result.Status)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to copy columns: %w", err)
+	}
+
+	return model.ToDomain(&result), nil
+}

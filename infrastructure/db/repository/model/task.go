@@ -12,6 +12,15 @@ func ToInsertTaskParam(task *domain.Task) *InsertTaskParam {
 	return &InsertTaskParam{task.Title, task.Description, task.Status}
 }
 
+type UpdateTaskParam struct {
+	Description string
+	Status      bool
+}
+
+func ToUpdateTaskParam(task *domain.Task) *UpdateTaskParam {
+	return &UpdateTaskParam{task.Description, task.Status}
+}
+
 type TaskResult struct {
 	Id          string
 	Title       string
