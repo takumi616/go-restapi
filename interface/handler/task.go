@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/takumi616/go-restapi/domain"
 	"github.com/takumi616/go-restapi/interface/handler/helper"
 	"github.com/takumi616/go-restapi/interface/handler/request"
 	"github.com/takumi616/go-restapi/interface/handler/response"
@@ -43,7 +42,7 @@ func (h *TaskHandler) AddTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	task := domain.NewTask(req.Title, req.Description)
+	task := (&req).ToDomain()
 
 	added, err := h.usecase.AddTask(ctx, task)
 	if err != nil {
