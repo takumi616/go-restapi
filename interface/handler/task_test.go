@@ -321,3 +321,61 @@ func TestUpdateTask(t *testing.T) {
 		})
 	}
 }
+
+func TestDeleteTask(t *testing.T) {
+	type expected struct {
+		status  int
+		resFile string
+	}
+
+	testTable := map[string]struct {
+		id       string
+		task     *domain.Task
+		deleted  *domain.Task
+		expected expected
+	}{
+		"ok": {
+			id: "f299e7ed-a22a-4494-b59e-21bb91fdae3b",
+			task: &domain.Task{
+				Id:          "f299e7ed-a22a-4494-b59e-21bb91fdae3b",
+				Title:       "test title",
+				Description: "test description",
+				Status:      false,
+			},
+			deleted: &domain.Task{
+				Id: "f299e7ed-a22a-4494-b59e-21bb91fdae3b",
+			},
+			expected: expected{
+				status:  http.StatusOK,
+				resFile: "test/data/delete_task/ok_res.json.golden",
+			},
+		},
+	}
+
+	for n, tt := range testTable {
+		tt := tt
+
+		t.Run(n, func(t *testing.T) {
+			t.Parallel()
+
+			w := httptest.NewRecorder()
+			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/tasks/%s", tt.id), nil)
+			r.SetPathValue("id", tt.id)
+
+			mockCtrl := gomock.NewController(t)
+			defer mockCtrl.Finish()
+
+			mockTaskUsecase := mock.NewMockTaskUsecase(mockCtrl)
+			mockTaskUsecase.EXPECT().DeleteTask(r.Context(), tt.id).
+				Return(tt.deleted, nil)
+
+			sut := NewTaskHandler(mockTaskUsecase)
+			sut.DeleteTask(w, r)
+
+			actualRes := w.Result()
+			helper.AssertResponse(t,
+				actualRes, tt.expected.status, helper.LoadFile(t, tt.expected.resFile),
+			)
+		})
+	}
+}

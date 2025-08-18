@@ -50,6 +50,21 @@ func (mr *MockTaskUsecaseMockRecorder) AddTask(ctx, task interface{}) *gomock.Ca
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddTask", reflect.TypeOf((*MockTaskUsecase)(nil).AddTask), ctx, task)
 }
 
+// DeleteTask mocks base method.
+func (m *MockTaskUsecase) DeleteTask(ctx context.Context, id string) (*domain.Task, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteTask", ctx, id)
+	ret0, _ := ret[0].(*domain.Task)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DeleteTask indicates an expected call of DeleteTask.
+func (mr *MockTaskUsecaseMockRecorder) DeleteTask(ctx, id interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteTask", reflect.TypeOf((*MockTaskUsecase)(nil).DeleteTask), ctx, id)
+}
+
 // GetTaskById mocks base method.
 func (m *MockTaskUsecase) GetTaskById(ctx context.Context, id string) (*domain.Task, error) {
 	m.ctrl.T.Helper()

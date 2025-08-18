@@ -134,3 +134,19 @@ func (h *TaskHandler) UpdateTask(w http.ResponseWriter, r *http.Request) {
 		response.ToTaskRes(updated),
 	)
 }
+
+func (h *TaskHandler) DeleteTask(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	id := r.PathValue("id")
+	deleted, err := h.usecase.DeleteTask(ctx, id)
+	if err != nil {
+		helper.WriteResponse(
+			ctx, w, http.StatusInternalServerError,
+			response.ErrResponse{Message: err.Error()},
+		)
+		return
+	}
+
+	helper.WriteResponse(ctx, w, http.StatusOK, response.ToTaskIdRes(deleted))
+}
