@@ -100,3 +100,73 @@ func TestInsert(t *testing.T) {
 		})
 	}
 }
+
+func TestSelectAll(t *testing.T) {
+	type expected struct {
+		taskList []*domain.Task
+	}
+
+	testTable := map[string]struct {
+		mockSetup func(sqlmock.Sqlmock)
+		expected  expected
+	}{
+		"ok": {
+			mockSetup: func(m sqlmock.Sqlmock) {
+				rows := sqlmock.NewRows([]string{"id", "title", "description", "status"}).
+					AddRow("6a30b9b0-18bf-47b4-bd23-d72726864def", "Test Title", "Test Description", false).
+					AddRow("3e440171-0921-4c88-a7ec-13f4cdab0d69", "Test Title2", "Test Description2", false)
+
+				m.ExpectQuery(regexp.QuoteMeta(
+					"SELECT * FROM tasks",
+				)).WillReturnRows(rows)
+			},
+			expected: expected{
+				taskList: []*domain.Task{
+					{
+						Id:          "6a30b9b0-18bf-47b4-bd23-d72726864def",
+						Title:       "Test Title",
+						Description: "Test Description",
+						Status:      false,
+					},
+					{
+						Id:          "3e440171-0921-4c88-a7ec-13f4cdab0d69",
+						Title:       "Test Title2",
+						Description: "Test Description2",
+						Status:      false,
+					},
+				},
+			},
+		},
+		"empty": {
+			mockSetup: func(m sqlmock.Sqlmock) {
+				rows := sqlmock.NewRows([]string{"id", "title", "description", "status"})
+
+				m.ExpectQuery(regexp.QuoteMeta(
+					"SELECT * FROM tasks",
+				)).WillReturnRows(rows)
+			},
+			expected: expected{
+				taskList: nil,
+			},
+		},
+	}
+
+	for n, tt := range testTable {
+		tt := tt
+		t.Run(n, func(t *testing.T) {
+			db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherRegexp))
+			require.NoError(t, err)
+			defer db.Close()
+
+			tt.mockSetup(mock)
+
+			repo := &TaskRepository{Db: db}
+			result, err := repo.SelectAll(context.Background())
+
+			assert.Equal(t, tt.expected.taskList, result)
+			assert.Nil(t, err)
+
+			assert.NoError(t, mock.ExpectationsWereMet())
+		})
+	}
+}
