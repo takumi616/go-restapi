@@ -37,7 +37,7 @@ func (r *TaskRepository) Insert(ctx context.Context, task *domain.Task) (*domain
 }
 
 func (r *TaskRepository) SelectAll(ctx context.Context) ([]*domain.Task, error) {
-	rows, err := r.Db.QueryContext(ctx, "SELECT * from tasks")
+	rows, err := r.Db.QueryContext(ctx, "SELECT * FROM tasks")
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
@@ -58,7 +58,7 @@ func (r *TaskRepository) SelectAll(ctx context.Context) ([]*domain.Task, error) 
 func (r *TaskRepository) SelectById(ctx context.Context, id string) (*domain.Task, error) {
 	var taskRes model.TaskResult
 	err := r.Db.QueryRowContext(
-		ctx, "SELECT * from tasks WHERE id = $1", id,
+		ctx, "SELECT * FROM tasks WHERE id = $1", id,
 	).Scan(&taskRes.Id, &taskRes.Title, &taskRes.Description, &taskRes.Status)
 
 	if err != nil {
