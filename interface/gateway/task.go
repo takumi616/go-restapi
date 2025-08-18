@@ -29,3 +29,7 @@ func (g *TaskGateway) GetTaskById(ctx context.Context, id string) (*domain.Task,
 func (g *TaskGateway) UpdateTask(ctx context.Context, id string, task *domain.Task) (*domain.Task, error) {
 	return g.repository.Update(ctx, id, task)
 }
+
+func (g *TaskGateway) DeleteTask(ctx context.Context, id string) (*domain.Task, error) {
+	return g.repository.Delete(ctx, id)
+}

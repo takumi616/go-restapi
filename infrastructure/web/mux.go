@@ -23,6 +23,7 @@ func (s ServeMux) RegisterHandler() http.Handler {
 	mux.HandleFunc("GET /tasks", s.TaskHandler.GetTaskList)
 	mux.HandleFunc("GET /tasks/{id}", s.TaskHandler.GetTaskById)
 	mux.HandleFunc("PATCH /tasks/{id}", s.TaskHandler.UpdateTask)
+	mux.HandleFunc("DELETE /tasks/{id}", s.TaskHandler.DeleteTask)
 
 	return mux
 }

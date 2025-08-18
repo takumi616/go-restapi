@@ -14,3 +14,13 @@ func ToTaskRes(task *domain.Task) *TaskRes {
 		task.Id, task.Title, task.Description, task.Status,
 	}
 }
+
+type TaskIdRes struct {
+	Id string `json:"id"`
+}
+
+func ToTaskIdRes(task *domain.Task) *TaskIdRes {
+	return &TaskIdRes{
+		task.Id,
+	}
+}

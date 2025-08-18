@@ -84,3 +84,19 @@ func (r *TaskRepository) Update(ctx context.Context, id string, task *domain.Tas
 
 	return model.ToDomain(&result), nil
 }
+
+func (r *TaskRepository) Delete(ctx context.Context, id string) (*domain.Task, error) {
+	var deletedId string
+	err := r.Db.QueryRowContext(
+		ctx, "DELETE FROM tasks WHERE id=$1 RETURNING id", id,
+	).Scan(&deletedId)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to copy columns: %w", err)
+	}
+
+	task := &domain.Task{}
+	task.Id = deletedId
+
+	return task, nil
+}

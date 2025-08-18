@@ -34,3 +34,7 @@ func (u *TaskUsecase) GetTaskById(ctx context.Context, id string) (*domain.Task,
 func (u *TaskUsecase) UpdateTask(ctx context.Context, id string, task *domain.Task) (*domain.Task, error) {
 	return u.gateway.UpdateTask(ctx, id, task)
 }
+
+func (u *TaskUsecase) DeleteTask(ctx context.Context, id string) (*domain.Task, error) {
+	return u.gateway.DeleteTask(ctx, id)
+}
