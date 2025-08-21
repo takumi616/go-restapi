@@ -32,7 +32,7 @@ func (r *TaskRepository) Insert(ctx context.Context, task *domain.Task) (*domain
 	).Scan(&result.Id, &result.Title, &result.Description, &result.Status)
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to insert task: %w", err)
+		return nil, fmt.Errorf("failed to insert a task: %w", err)
 	}
 
 	return model.ToDomain(&result), nil
@@ -68,11 +68,11 @@ func (r *TaskRepository) SelectAll(ctx context.Context) ([]*domain.Task, error) 
 func (r *TaskRepository) SelectById(ctx context.Context, id string) (*domain.Task, error) {
 	var taskRes model.TaskResult
 	err := r.Db.QueryRowContext(
-		ctx, "SELECT * FROM tasks WHERE id = $1", id,
+		ctx, "SELECT id, title, description, status FROM tasks WHERE id = $1", id,
 	).Scan(&taskRes.Id, &taskRes.Title, &taskRes.Description, &taskRes.Status)
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to copy columns: %w", err)
+		return nil, fmt.Errorf("failed to select a task: %w", err)
 	}
 
 	return model.ToDomain(&taskRes), nil
@@ -84,12 +84,13 @@ func (r *TaskRepository) Update(ctx context.Context, id string, task *domain.Tas
 	var result model.TaskResult
 	err := r.Db.QueryRowContext(
 		ctx,
-		"UPDATE tasks SET description=$1, status=$2 WHERE id=$3 RETURNING *",
+		`UPDATE tasks SET description=$1, status=$2 WHERE id=$3
+		RETURNING id, title, description, status`,
 		param.Description, param.Status, id,
 	).Scan(&result.Id, &result.Title, &result.Description, &result.Status)
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to copy columns: %w", err)
+		return nil, fmt.Errorf("failed to update a task: %w", err)
 	}
 
 	return model.ToDomain(&result), nil
@@ -102,7 +103,7 @@ func (r *TaskRepository) Delete(ctx context.Context, id string) (*domain.Task, e
 	).Scan(&deletedId)
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to copy columns: %w", err)
+		return nil, fmt.Errorf("failed to delete a task: %w", err)
 	}
 
 	task := &domain.Task{}

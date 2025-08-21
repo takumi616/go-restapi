@@ -74,7 +74,7 @@ func TestInsert(t *testing.T) {
 			expected: expected{
 				task: nil,
 				err: errors.New(
-					"failed to insert task: pq: duplicate key value violates unique constraint \"tasks_title_key\"",
+					"failed to insert a task: pq: duplicate key value violates unique constraint \"tasks_title_key\"",
 				),
 			},
 		},
@@ -194,7 +194,7 @@ func TestSelectById(t *testing.T) {
 					AddRow("6a30b9b0-18bf-47b4-bd23-d72726864def", "Test Title", "Test Description", false)
 
 				m.ExpectQuery(regexp.QuoteMeta(
-					"SELECT * FROM tasks WHERE id = $1",
+					"SELECT id, title, description, status FROM tasks WHERE id = $1",
 				)).WithArgs(id).WillReturnRows(rows)
 			},
 			expected: expected{
@@ -214,12 +214,12 @@ func TestSelectById(t *testing.T) {
 					AddRow("6a30b9b0-18bf-47b4-bd23-d72726864def", "Test Title", "Test Description", false)
 
 				m.ExpectQuery(regexp.QuoteMeta(
-					"SELECT * FROM tasks WHERE id = $1",
+					"SELECT id, title, description, status FROM tasks WHERE id = $1",
 				)).WithArgs(id).WillReturnError(errors.New("pq: invalid input syntax for type uuid: \"abc123\""))
 			},
 			expected: expected{
 				task: nil,
-				err:  errors.New("failed to copy columns: pq: invalid input syntax for type uuid: \"abc123\""),
+				err:  errors.New("failed to select a task: pq: invalid input syntax for type uuid: \"abc123\""),
 			},
 		},
 	}
@@ -236,13 +236,13 @@ func TestSelectById(t *testing.T) {
 			repo := &TaskRepository{Db: db}
 			result, err := repo.SelectById(context.Background(), tt.id)
 
-			if n == "ok" {
-				assert.Equal(t, tt.expected.task, result)
-				assert.Nil(t, err)
-			} else if n == "invalidId" {
+			if tt.expected.err != nil {
 				assert.Nil(t, result)
 				assert.Error(t, err)
 				assert.EqualError(t, err, tt.expected.err.Error())
+			} else {
+				assert.Equal(t, tt.expected.task, result)
+				assert.Nil(t, err)
 			}
 
 			assert.NoError(t, mock.ExpectationsWereMet())
@@ -259,7 +259,7 @@ func TestUpdate(t *testing.T) {
 	testTable := map[string]struct {
 		id        string
 		input     *domain.Task
-		mockSetup func(sqlmock.Sqlmock, string, *domain.Task)
+		mockSetup func(sqlmock.Sqlmock, string, *model.UpdateTaskParam)
 		expected  expected
 	}{
 		"ok": {
@@ -268,14 +268,15 @@ func TestUpdate(t *testing.T) {
 				Description: "Update Test Description",
 				Status:      true,
 			},
-			mockSetup: func(m sqlmock.Sqlmock, id string, input *domain.Task) {
+			mockSetup: func(m sqlmock.Sqlmock, id string, param *model.UpdateTaskParam) {
 				rows := sqlmock.NewRows([]string{"id", "title", "description", "status"}).
-					AddRow("6a30b9b0-18bf-47b4-bd23-d72726864def", "Test Title", "Update Test Description", true)
+					AddRow("6a30b9b0-18bf-47b4-bd23-d72726864def", "Test Title", param.Description, param.Status)
 
 				m.ExpectQuery(regexp.QuoteMeta(
-					"UPDATE tasks SET description=$1, status=$2 WHERE id=$3 RETURNING *",
+					`UPDATE tasks SET description=$1, status=$2 WHERE id=$3
+					RETURNING id, title, description, status`,
 				)).
-					WithArgs(input.Description, input.Status, id).
+					WithArgs(param.Description, param.Status, id).
 					WillReturnRows(rows)
 			},
 			expected: expected{
@@ -294,19 +295,20 @@ func TestUpdate(t *testing.T) {
 				Description: "Update Test Description",
 				Status:      true,
 			},
-			mockSetup: func(m sqlmock.Sqlmock, id string, input *domain.Task) {
+			mockSetup: func(m sqlmock.Sqlmock, id string, param *model.UpdateTaskParam) {
 				sqlmock.NewRows([]string{"id", "title", "description", "status"}).
-					AddRow("6a30b9b0-18bf-47b4-bd23-d72726864def", "Test Title", "Test Description", false)
+					AddRow("6a30b9b0-18bf-47b4-bd23-d72726864def", "Test Title", param.Description, param.Status)
 
 				m.ExpectQuery(regexp.QuoteMeta(
-					"UPDATE tasks SET description=$1, status=$2 WHERE id=$3 RETURNING *",
+					`UPDATE tasks SET description=$1, status=$2 WHERE id=$3
+					RETURNING id, title, description, status`,
 				)).
-					WithArgs(input.Description, input.Status, id).
+					WithArgs(param.Description, param.Status, id).
 					WillReturnError(errors.New("pq: invalid input syntax for type uuid: \"abc123\""))
 			},
 			expected: expected{
 				task: nil,
-				err:  errors.New("failed to copy columns: pq: invalid input syntax for type uuid: \"abc123\""),
+				err:  errors.New("failed to update a task: pq: invalid input syntax for type uuid: \"abc123\""),
 			},
 		},
 	}
@@ -318,18 +320,18 @@ func TestUpdate(t *testing.T) {
 			require.NoError(t, err)
 			defer db.Close()
 
-			tt.mockSetup(mock, tt.id, tt.input)
+			tt.mockSetup(mock, tt.id, model.ToUpdateTaskParam(tt.input))
 
 			repo := &TaskRepository{Db: db}
 			result, err := repo.Update(context.Background(), tt.id, tt.input)
 
-			if n == "ok" {
-				assert.Equal(t, tt.expected.task, result)
-				assert.Nil(t, err)
-			} else if n == "invalidId" {
+			if tt.expected.err != nil {
 				assert.Nil(t, result)
 				assert.Error(t, err)
 				assert.EqualError(t, err, tt.expected.err.Error())
+			} else {
+				assert.Equal(t, tt.expected.task, result)
+				assert.Nil(t, err)
 			}
 
 			assert.NoError(t, mock.ExpectationsWereMet())
@@ -381,7 +383,7 @@ func TestDelete(t *testing.T) {
 			},
 			expected: expected{
 				task: nil,
-				err:  errors.New("failed to copy columns: pq: invalid input syntax for type uuid: \"abc123\""),
+				err:  errors.New("failed to delete a task: pq: invalid input syntax for type uuid: \"abc123\""),
 			},
 		},
 	}
@@ -398,13 +400,13 @@ func TestDelete(t *testing.T) {
 			repo := &TaskRepository{Db: db}
 			result, err := repo.Delete(context.Background(), tt.id)
 
-			if n == "ok" {
-				assert.Equal(t, tt.expected.task, result)
-				assert.Nil(t, err)
-			} else if n == "invalidId" {
+			if tt.expected.err != nil {
 				assert.Nil(t, result)
 				assert.Error(t, err)
 				assert.EqualError(t, err, tt.expected.err.Error())
+			} else {
+				assert.Equal(t, tt.expected.task, result)
+				assert.Nil(t, err)
 			}
 
 			assert.NoError(t, mock.ExpectationsWereMet())
