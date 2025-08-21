@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/takumi616/go-restapi/domain"
+	"github.com/takumi616/go-restapi/infrastructure/db/repository/model"
 )
 
 func TestInsert(t *testing.T) {
@@ -20,7 +21,7 @@ func TestInsert(t *testing.T) {
 
 	testTable := map[string]struct {
 		input     *domain.Task
-		mockSetup func(sqlmock.Sqlmock)
+		mockSetup func(sqlmock.Sqlmock, *model.InsertTaskParam)
 		expected  expected
 	}{
 		"ok": {
@@ -29,14 +30,16 @@ func TestInsert(t *testing.T) {
 				Description: "Test Description",
 				Status:      false,
 			},
-			mockSetup: func(m sqlmock.Sqlmock) {
+			mockSetup: func(m sqlmock.Sqlmock, param *model.InsertTaskParam) {
 				rows := sqlmock.NewRows([]string{"id", "title", "description", "status"}).
-					AddRow("6a30b9b0-18bf-47b4-bd23-d72726864def", "Test Title", "Test Description", false)
+					AddRow("6a30b9b0-18bf-47b4-bd23-d72726864def", param.Title, param.Description, param.Status)
 
 				m.ExpectQuery(regexp.QuoteMeta(
-					"INSERT INTO tasks(title, description, status) VALUES($1, $2, $3) RETURNING *",
+					`INSERT INTO tasks(title, description, status)
+					VALUES($1, $2, $3)
+					RETURNING id, title, description, status`,
 				)).
-					WithArgs("Test Title", "Test Description", false).
+					WithArgs(param.Title, param.Description, param.Status).
 					WillReturnRows(rows)
 			},
 			expected: expected{
@@ -55,11 +58,13 @@ func TestInsert(t *testing.T) {
 				Description: "Test Description",
 				Status:      false,
 			},
-			mockSetup: func(m sqlmock.Sqlmock) {
+			mockSetup: func(m sqlmock.Sqlmock, param *model.InsertTaskParam) {
 				m.ExpectQuery(regexp.QuoteMeta(
-					"INSERT INTO tasks(title, description, status) VALUES($1, $2, $3) RETURNING *",
+					`INSERT INTO tasks(title, description, status)
+					VALUES($1, $2, $3)
+					RETURNING id, title, description, status`,
 				)).
-					WithArgs("Duplicate Title", "Test Description", false).
+					WithArgs(param.Title, param.Description, param.Status).
 					WillReturnError(
 						errors.New(
 							"pq: duplicate key value violates unique constraint \"tasks_title_key\"",
@@ -69,7 +74,7 @@ func TestInsert(t *testing.T) {
 			expected: expected{
 				task: nil,
 				err: errors.New(
-					"failed to execute query: pq: duplicate key value violates unique constraint \"tasks_title_key\"",
+					"failed to insert task: pq: duplicate key value violates unique constraint \"tasks_title_key\"",
 				),
 			},
 		},
@@ -82,18 +87,18 @@ func TestInsert(t *testing.T) {
 			require.NoError(t, err)
 			defer db.Close()
 
-			tt.mockSetup(mock)
+			tt.mockSetup(mock, model.ToInsertTaskParam(tt.input))
 
 			repo := &TaskRepository{Db: db}
 			result, err := repo.Insert(context.Background(), tt.input)
 
-			if n == "ok" {
-				assert.Equal(t, tt.expected.task, result)
-				assert.Nil(t, err)
-			} else if n == "duplicateError" {
+			if tt.expected.err != nil {
 				assert.Nil(t, result)
 				assert.Error(t, err)
 				assert.EqualError(t, err, tt.expected.err.Error())
+			} else {
+				assert.Equal(t, tt.expected.task, result)
+				assert.Nil(t, err)
 			}
 
 			assert.NoError(t, mock.ExpectationsWereMet())
@@ -117,7 +122,7 @@ func TestSelectAll(t *testing.T) {
 					AddRow("3e440171-0921-4c88-a7ec-13f4cdab0d69", "Test Title2", "Test Description2", false)
 
 				m.ExpectQuery(regexp.QuoteMeta(
-					"SELECT * FROM tasks",
+					"SELECT id, title, description, status FROM tasks",
 				)).WillReturnRows(rows)
 			},
 			expected: expected{
@@ -142,11 +147,11 @@ func TestSelectAll(t *testing.T) {
 				rows := sqlmock.NewRows([]string{"id", "title", "description", "status"})
 
 				m.ExpectQuery(regexp.QuoteMeta(
-					"SELECT * FROM tasks",
+					"SELECT id, title, description, status FROM tasks",
 				)).WillReturnRows(rows)
 			},
 			expected: expected{
-				taskList: nil,
+				taskList: []*domain.Task{},
 			},
 		},
 	}
