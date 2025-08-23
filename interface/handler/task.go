@@ -2,12 +2,15 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
+	"log/slog"
 	"net/http"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/takumi616/go-restapi/interface/handler/helper"
 	"github.com/takumi616/go-restapi/interface/handler/request"
 	"github.com/takumi616/go-restapi/interface/handler/response"
+	customError "github.com/takumi616/go-restapi/shared/error"
 )
 
 type TaskHandler struct {
@@ -25,9 +28,10 @@ func (h *TaskHandler) AddTask(w http.ResponseWriter, r *http.Request) {
 
 	var req request.AddTaskReq
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		slog.ErrorContext(ctx, err.Error())
 		helper.WriteResponse(
 			ctx, w, http.StatusInternalServerError,
-			response.ErrResponse{Message: err.Error()},
+			response.ErrResponse{Message: customError.InvalidRequestFormat.Error()},
 		)
 		return
 	}
@@ -35,9 +39,10 @@ func (h *TaskHandler) AddTask(w http.ResponseWriter, r *http.Request) {
 
 	err := validator.New().Struct(req)
 	if err != nil {
+		slog.ErrorContext(ctx, err.Error())
 		helper.WriteResponse(
 			ctx, w, http.StatusBadRequest,
-			response.ErrResponse{Message: err.Error()},
+			response.ErrResponse{Message: customError.TaskBadRequest.Error()},
 		)
 		return
 	}
@@ -85,10 +90,18 @@ func (h *TaskHandler) GetTaskById(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	task, err := h.usecase.GetTaskById(ctx, id)
 	if err != nil {
-		helper.WriteResponse(
-			ctx, w, http.StatusInternalServerError,
-			response.ErrResponse{Message: err.Error()},
-		)
+		if errors.Is(err, customError.ErrTaskNotFound) {
+			helper.WriteResponse(
+				ctx, w, http.StatusNotFound,
+				response.ErrResponse{Message: err.Error()},
+			)
+		} else {
+			helper.WriteResponse(
+				ctx, w, http.StatusInternalServerError,
+				response.ErrResponse{Message: err.Error()},
+			)
+		}
+
 		return
 	}
 
@@ -101,9 +114,10 @@ func (h *TaskHandler) UpdateTask(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	var req request.UpdateTaskReq
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		slog.ErrorContext(ctx, err.Error())
 		helper.WriteResponse(
 			ctx, w, http.StatusInternalServerError,
-			response.ErrResponse{Message: err.Error()},
+			response.ErrResponse{Message: customError.InvalidRequestFormat.Error()},
 		)
 		return
 	}
@@ -111,9 +125,10 @@ func (h *TaskHandler) UpdateTask(w http.ResponseWriter, r *http.Request) {
 
 	err := validator.New().Struct(req)
 	if err != nil {
+		slog.ErrorContext(ctx, err.Error())
 		helper.WriteResponse(
 			ctx, w, http.StatusBadRequest,
-			response.ErrResponse{Message: err.Error()},
+			response.ErrResponse{Message: customError.TaskBadRequest.Error()},
 		)
 		return
 	}
@@ -122,10 +137,18 @@ func (h *TaskHandler) UpdateTask(w http.ResponseWriter, r *http.Request) {
 
 	updated, err := h.usecase.UpdateTask(ctx, id, task)
 	if err != nil {
-		helper.WriteResponse(
-			ctx, w, http.StatusInternalServerError,
-			response.ErrResponse{Message: err.Error()},
-		)
+		if errors.Is(err, customError.ErrTaskNotFound) {
+			helper.WriteResponse(
+				ctx, w, http.StatusNotFound,
+				response.ErrResponse{Message: err.Error()},
+			)
+		} else {
+			helper.WriteResponse(
+				ctx, w, http.StatusInternalServerError,
+				response.ErrResponse{Message: err.Error()},
+			)
+		}
+
 		return
 	}
 
@@ -141,10 +164,18 @@ func (h *TaskHandler) DeleteTask(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	deleted, err := h.usecase.DeleteTask(ctx, id)
 	if err != nil {
-		helper.WriteResponse(
-			ctx, w, http.StatusInternalServerError,
-			response.ErrResponse{Message: err.Error()},
-		)
+		if errors.Is(err, customError.ErrTaskNotFound) {
+			helper.WriteResponse(
+				ctx, w, http.StatusNotFound,
+				response.ErrResponse{Message: err.Error()},
+			)
+		} else {
+			helper.WriteResponse(
+				ctx, w, http.StatusInternalServerError,
+				response.ErrResponse{Message: err.Error()},
+			)
+		}
+
 		return
 	}
 

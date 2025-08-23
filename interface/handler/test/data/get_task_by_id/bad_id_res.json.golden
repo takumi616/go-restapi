@@ -1,3 +1,0 @@
-{
-    "message":"failed to copy columns: pq: invalid input syntax for type uuid: \"abc123\""
-}
