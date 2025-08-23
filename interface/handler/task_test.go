@@ -2,7 +2,6 @@ package handler
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -12,6 +11,7 @@ import (
 	"github.com/takumi616/go-restapi/domain"
 	"github.com/takumi616/go-restapi/interface/handler/test/helper"
 	"github.com/takumi616/go-restapi/interface/handler/test/mock"
+	customError "github.com/takumi616/go-restapi/shared/error"
 )
 
 func TestAddTask(t *testing.T) {
@@ -22,14 +22,16 @@ func TestAddTask(t *testing.T) {
 
 	type mockData struct {
 		param, returned *domain.Task
+		err             error
 	}
 
 	testTable := map[string]struct {
 		reqFile  string
 		expected expected
 		mockData mockData
+		mockUse  bool
 	}{
-		"ok": {
+		"Ok": {
 			reqFile: "test/data/add_task/ok_req.json.golden",
 			expected: expected{
 				status:  http.StatusCreated,
@@ -42,9 +44,24 @@ func TestAddTask(t *testing.T) {
 					Title: "test title", Description: "test description",
 					Status: false,
 				},
+				err: nil,
 			},
+			mockUse: true,
 		},
-		"unmarshalFail": {
+		"DuplicateErr": {
+			reqFile: "test/data/add_task/duplicate_err_req.json.golden",
+			expected: expected{
+				status:  http.StatusInternalServerError,
+				resFile: "test/data/add_task/duplicate_err_res.json.golden",
+			},
+			mockData: mockData{
+				param:    &domain.Task{Title: "duplicate test title", Description: "test description"},
+				returned: nil,
+				err:      customError.ErrAddTask,
+			},
+			mockUse: true,
+		},
+		"UnmarshalFail": {
 			reqFile: "test/data/add_task/unmarshal_fail_req.json.golden",
 			expected: expected{
 				status:  http.StatusInternalServerError,
@@ -54,17 +71,19 @@ func TestAddTask(t *testing.T) {
 				param:    nil,
 				returned: nil,
 			},
+			mockUse: false,
 		},
-		"badRequest": {
-			reqFile: "test/data/add_task/bad_req.json.golden",
+		"BadRequest": {
+			reqFile: "test/data/add_task/bad_req_req.json.golden",
 			expected: expected{
 				status:  http.StatusBadRequest,
-				resFile: "test/data/add_task/bad_res.json.golden",
+				resFile: "test/data/add_task/bad_req_res.json.golden",
 			},
 			mockData: mockData{
 				param:    nil,
 				returned: nil,
 			},
+			mockUse: false,
 		},
 	}
 
@@ -85,9 +104,9 @@ func TestAddTask(t *testing.T) {
 			defer mockCtrl.Finish()
 
 			mockTaskUsecase := mock.NewMockTaskUsecase(mockCtrl)
-			if n == "ok" {
+			if tt.mockUse {
 				mockTaskUsecase.EXPECT().AddTask(r.Context(), tt.mockData.param).
-					Return(tt.mockData.returned, nil)
+					Return(tt.mockData.returned, tt.mockData.err)
 			}
 
 			sut := NewTaskHandler(mockTaskUsecase)
@@ -109,9 +128,10 @@ func TestGetTaskList(t *testing.T) {
 
 	testTable := map[string]struct {
 		taskList []*domain.Task
+		err      error
 		expected expected
 	}{
-		"ok": {
+		"Ok": {
 			taskList: []*domain.Task{
 				{
 					Id:          "f299e7ed-a22a-4494-b59e-21bb91fdae3b",
@@ -126,16 +146,26 @@ func TestGetTaskList(t *testing.T) {
 					Status:      false,
 				},
 			},
+			err: nil,
 			expected: expected{
 				status:  http.StatusOK,
 				resFile: "test/data/get_task_list/ok_res.json.golden",
 			},
 		},
-		"empty": {
+		"Empty": {
 			taskList: []*domain.Task{},
+			err:      nil,
 			expected: expected{
 				status:  http.StatusOK,
 				resFile: "test/data/get_task_list/empty_res.json.golden",
+			},
+		},
+		"InternalServerErr": {
+			taskList: nil,
+			err:      customError.ErrGetTaskList,
+			expected: expected{
+				status:  http.StatusInternalServerError,
+				resFile: "test/data/get_task_list/internal_server_err_res.json.golden",
 			},
 		},
 	}
@@ -154,7 +184,7 @@ func TestGetTaskList(t *testing.T) {
 
 			mockTaskUsecase := mock.NewMockTaskUsecase(mockCtrl)
 			mockTaskUsecase.EXPECT().GetTaskList(r.Context()).
-				Return(tt.taskList, nil)
+				Return(tt.taskList, tt.err)
 
 			sut := NewTaskHandler(mockTaskUsecase)
 			sut.GetTaskList(w, r)
@@ -179,7 +209,7 @@ func TestGetTaskById(t *testing.T) {
 		err      error
 		expected expected
 	}{
-		"ok": {
+		"Ok": {
 			id: "f299e7ed-a22a-4494-b59e-21bb91fdae3b",
 			task: &domain.Task{
 				Id:          "f299e7ed-a22a-4494-b59e-21bb91fdae3b",
@@ -193,13 +223,22 @@ func TestGetTaskById(t *testing.T) {
 				resFile: "test/data/get_task_by_id/ok_res.json.golden",
 			},
 		},
-		"badId": {
+		"NotFound": {
+			id:   "f299e7ed-a22a-4494-b59e-21bb91fdae3b",
+			task: nil,
+			err:  customError.ErrTaskNotFound,
+			expected: expected{
+				status:  http.StatusNotFound,
+				resFile: "test/data/get_task_by_id/not_found_res.json.golden",
+			},
+		},
+		"InvalidId": {
 			id:   "abc123",
 			task: nil,
-			err:  errors.New("failed to copy columns: pq: invalid input syntax for type uuid: \"abc123\""),
+			err:  customError.ErrGetTaskById,
 			expected: expected{
 				status:  http.StatusInternalServerError,
-				resFile: "test/data/get_task_by_id/bad_id_res.json.golden",
+				resFile: "test/data/get_task_by_id/invalid_id_res.json.golden",
 			},
 		},
 	}
@@ -240,6 +279,7 @@ func TestUpdateTask(t *testing.T) {
 
 	type mockData struct {
 		inputTask, returnedTask *domain.Task
+		err                     error
 	}
 
 	testTable := map[string]struct {
@@ -247,8 +287,9 @@ func TestUpdateTask(t *testing.T) {
 		reqFile  string
 		expected expected
 		mockData mockData
+		mockUse  bool
 	}{
-		"ok": {
+		"Ok": {
 			id:      "6a30b9b0-18bf-47b4-bd23-d72726864def",
 			reqFile: "test/data/update_task/ok_req.json.golden",
 			expected: expected{
@@ -262,9 +303,11 @@ func TestUpdateTask(t *testing.T) {
 					Title: "test title", Description: "update test description",
 					Status: true,
 				},
+				err: nil,
 			},
+			mockUse: true,
 		},
-		"unmarshalFail": {
+		"UnmarshalFail": {
 			reqFile: "test/data/update_task/unmarshal_fail_req.json.golden",
 			expected: expected{
 				status:  http.StatusInternalServerError,
@@ -273,18 +316,50 @@ func TestUpdateTask(t *testing.T) {
 			mockData: mockData{
 				inputTask:    nil,
 				returnedTask: nil,
+				err:          nil,
 			},
+			mockUse: false,
 		},
-		"badRequest": {
-			reqFile: "test/data/update_task/bad_req.json.golden",
+		"BadRequest": {
+			reqFile: "test/data/update_task/bad_req_req.json.golden",
 			expected: expected{
 				status:  http.StatusBadRequest,
-				resFile: "test/data/update_task/bad_res.json.golden",
+				resFile: "test/data/update_task/bad_req_res.json.golden",
 			},
 			mockData: mockData{
 				inputTask:    nil,
 				returnedTask: nil,
+				err:          nil,
 			},
+			mockUse: false,
+		},
+		"NotFound": {
+			id:      "7a30b9b0-18bf-47b4-bd23-d72726864def",
+			reqFile: "test/data/update_task/not_found_req.json.golden",
+			expected: expected{
+				status:  http.StatusNotFound,
+				resFile: "test/data/update_task/not_found_res.json.golden",
+			},
+			mockData: mockData{
+				inputTask:    &domain.Task{Description: "update test description", Status: true},
+				returnedTask: nil,
+				err:          customError.ErrTaskNotFound,
+			},
+			mockUse: true,
+		},
+		"InvalidId": {
+			id:      "7a30b9b0-18bf-47b4-bd23-d72726864def",
+			reqFile: "test/data/update_task/invalid_id_req.json.golden",
+			expected: expected{
+				status:  http.StatusInternalServerError,
+				resFile: "test/data/update_task/invalid_id_res.json.golden",
+			},
+			mockData: mockData{
+				inputTask:    &domain.Task{Description: "update test description", Status: true},
+				returnedTask: nil,
+				err:          customError.ErrUpdateTask,
+			},
+			mockUse: true,
 		},
 	}
 
@@ -306,9 +381,10 @@ func TestUpdateTask(t *testing.T) {
 			defer mockCtrl.Finish()
 
 			mockTaskUsecase := mock.NewMockTaskUsecase(mockCtrl)
-			if n == "ok" {
+
+			if tt.mockUse {
 				mockTaskUsecase.EXPECT().UpdateTask(r.Context(), tt.id, tt.mockData.inputTask).
-					Return(tt.mockData.returnedTask, nil)
+					Return(tt.mockData.returnedTask, tt.mockData.err)
 			}
 
 			sut := NewTaskHandler(mockTaskUsecase)
@@ -328,26 +404,49 @@ func TestDeleteTask(t *testing.T) {
 		resFile string
 	}
 
+	type mockData struct {
+		returnedTask *domain.Task
+		err          error
+	}
+
 	testTable := map[string]struct {
 		id       string
-		task     *domain.Task
-		deleted  *domain.Task
 		expected expected
+		mockData mockData
 	}{
-		"ok": {
+		"Ok": {
 			id: "f299e7ed-a22a-4494-b59e-21bb91fdae3b",
-			task: &domain.Task{
-				Id:          "f299e7ed-a22a-4494-b59e-21bb91fdae3b",
-				Title:       "test title",
-				Description: "test description",
-				Status:      false,
-			},
-			deleted: &domain.Task{
-				Id: "f299e7ed-a22a-4494-b59e-21bb91fdae3b",
-			},
 			expected: expected{
 				status:  http.StatusOK,
 				resFile: "test/data/delete_task/ok_res.json.golden",
+			},
+			mockData: mockData{
+				returnedTask: &domain.Task{
+					Id: "f299e7ed-a22a-4494-b59e-21bb91fdae3b",
+				},
+				err: nil,
+			},
+		},
+		"NotFound": {
+			id: "f299e7ed-a22a-4494-b59e-21bb91fdae3b",
+			expected: expected{
+				status:  http.StatusNotFound,
+				resFile: "test/data/delete_task/not_found_res.json.golden",
+			},
+			mockData: mockData{
+				returnedTask: nil,
+				err:          customError.ErrTaskNotFound,
+			},
+		},
+		"InvalidId": {
+			id: "abc123",
+			expected: expected{
+				status:  http.StatusInternalServerError,
+				resFile: "test/data/delete_task/invalid_id_res.json.golden",
+			},
+			mockData: mockData{
+				returnedTask: nil,
+				err:          customError.ErrDeleteTask,
 			},
 		},
 	}
@@ -367,7 +466,7 @@ func TestDeleteTask(t *testing.T) {
 
 			mockTaskUsecase := mock.NewMockTaskUsecase(mockCtrl)
 			mockTaskUsecase.EXPECT().DeleteTask(r.Context(), tt.id).
-				Return(tt.deleted, nil)
+				Return(tt.mockData.returnedTask, tt.mockData.err)
 
 			sut := NewTaskHandler(mockTaskUsecase)
 			sut.DeleteTask(w, r)

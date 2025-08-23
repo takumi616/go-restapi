@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"regexp"
 	"testing"
@@ -11,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/takumi616/go-restapi/domain"
 	"github.com/takumi616/go-restapi/infrastructure/db/repository/model"
+	customError "github.com/takumi616/go-restapi/shared/error"
 )
 
 func TestInsert(t *testing.T) {
@@ -24,7 +26,7 @@ func TestInsert(t *testing.T) {
 		mockSetup func(sqlmock.Sqlmock, *model.InsertTaskParam)
 		expected  expected
 	}{
-		"ok": {
+		"Ok": {
 			input: &domain.Task{
 				Title:       "Test Title",
 				Description: "Test Description",
@@ -52,7 +54,7 @@ func TestInsert(t *testing.T) {
 				err: nil,
 			},
 		},
-		"duplicateError": {
+		"DuplicateError": {
 			input: &domain.Task{
 				Title:       "Duplicate Title",
 				Description: "Test Description",
@@ -74,7 +76,7 @@ func TestInsert(t *testing.T) {
 			expected: expected{
 				task: nil,
 				err: errors.New(
-					"failed to insert a task: pq: duplicate key value violates unique constraint \"tasks_title_key\"",
+					customError.ErrInternalServerError.Error(),
 				),
 			},
 		},
@@ -109,13 +111,14 @@ func TestInsert(t *testing.T) {
 func TestSelectAll(t *testing.T) {
 	type expected struct {
 		taskList []*domain.Task
+		err      error
 	}
 
 	testTable := map[string]struct {
 		mockSetup func(sqlmock.Sqlmock)
 		expected  expected
 	}{
-		"ok": {
+		"Ok": {
 			mockSetup: func(m sqlmock.Sqlmock) {
 				rows := sqlmock.NewRows([]string{"id", "title", "description", "status"}).
 					AddRow("6a30b9b0-18bf-47b4-bd23-d72726864def", "Test Title", "Test Description", false).
@@ -140,9 +143,10 @@ func TestSelectAll(t *testing.T) {
 						Status:      false,
 					},
 				},
+				err: nil,
 			},
 		},
-		"empty": {
+		"Empty": {
 			mockSetup: func(m sqlmock.Sqlmock) {
 				rows := sqlmock.NewRows([]string{"id", "title", "description", "status"})
 
@@ -152,6 +156,20 @@ func TestSelectAll(t *testing.T) {
 			},
 			expected: expected{
 				taskList: []*domain.Task{},
+				err:      nil,
+			},
+		},
+		"InternalServerErr": {
+			mockSetup: func(m sqlmock.Sqlmock) {
+				sqlmock.NewRows([]string{"id", "title", "description", "status"})
+
+				m.ExpectQuery(regexp.QuoteMeta(
+					"SELECT id, title, description, status FROM tasks",
+				)).WillReturnError(errors.New("sql: expected 4 destination arguments in Scan, not 3"))
+			},
+			expected: expected{
+				taskList: nil,
+				err:      customError.ErrInternalServerError,
 			},
 		},
 	}
@@ -168,8 +186,14 @@ func TestSelectAll(t *testing.T) {
 			repo := &TaskRepository{Db: db}
 			result, err := repo.SelectAll(context.Background())
 
-			assert.Equal(t, tt.expected.taskList, result)
-			assert.Nil(t, err)
+			if tt.expected.err != nil {
+				assert.Nil(t, result)
+				assert.Error(t, err)
+				assert.EqualError(t, err, tt.expected.err.Error())
+			} else {
+				assert.Equal(t, tt.expected.taskList, result)
+				assert.Nil(t, err)
+			}
 
 			assert.NoError(t, mock.ExpectationsWereMet())
 		})
@@ -187,7 +211,7 @@ func TestSelectById(t *testing.T) {
 		mockSetup func(sqlmock.Sqlmock, string)
 		expected  expected
 	}{
-		"ok": {
+		"Ok": {
 			id: "6a30b9b0-18bf-47b4-bd23-d72726864def",
 			mockSetup: func(m sqlmock.Sqlmock, id string) {
 				rows := sqlmock.NewRows([]string{"id", "title", "description", "status"}).
@@ -207,7 +231,22 @@ func TestSelectById(t *testing.T) {
 				err: nil,
 			},
 		},
-		"invalidId": {
+		"NotFound": {
+			id: "3e440171-0921-4c88-a7ec-13f4cdab0d69",
+			mockSetup: func(m sqlmock.Sqlmock, id string) {
+				sqlmock.NewRows([]string{"id", "title", "description", "status"}).
+					AddRow("6a30b9b0-18bf-47b4-bd23-d72726864def", "Test Title", "Test Description", false)
+
+				m.ExpectQuery(regexp.QuoteMeta(
+					"SELECT id, title, description, status FROM tasks WHERE id = $1",
+				)).WithArgs(id).WillReturnError(sql.ErrNoRows)
+			},
+			expected: expected{
+				task: nil,
+				err:  customError.ErrNotFound,
+			},
+		},
+		"InvalidId": {
 			id: "abc123",
 			mockSetup: func(m sqlmock.Sqlmock, id string) {
 				sqlmock.NewRows([]string{"id", "title", "description", "status"}).
@@ -219,7 +258,7 @@ func TestSelectById(t *testing.T) {
 			},
 			expected: expected{
 				task: nil,
-				err:  errors.New("failed to select a task: pq: invalid input syntax for type uuid: \"abc123\""),
+				err:  customError.ErrInternalServerError,
 			},
 		},
 	}
@@ -262,7 +301,7 @@ func TestUpdate(t *testing.T) {
 		mockSetup func(sqlmock.Sqlmock, string, *model.UpdateTaskParam)
 		expected  expected
 	}{
-		"ok": {
+		"Ok": {
 			id: "6a30b9b0-18bf-47b4-bd23-d72726864def",
 			input: &domain.Task{
 				Description: "Update Test Description",
@@ -289,7 +328,29 @@ func TestUpdate(t *testing.T) {
 				err: nil,
 			},
 		},
-		"invalidId": {
+		"NotFound": {
+			id: "3e440171-0921-4c88-a7ec-13f4cdab0d69",
+			input: &domain.Task{
+				Description: "Update Test Description",
+				Status:      true,
+			},
+			mockSetup: func(m sqlmock.Sqlmock, id string, param *model.UpdateTaskParam) {
+				sqlmock.NewRows([]string{"id", "title", "description", "status"}).
+					AddRow("6a30b9b0-18bf-47b4-bd23-d72726864def", "Test Title", param.Description, param.Status)
+
+				m.ExpectQuery(regexp.QuoteMeta(
+					`UPDATE tasks SET description=$1, status=$2 WHERE id=$3
+					RETURNING id, title, description, status`,
+				)).
+					WithArgs(param.Description, param.Status, id).
+					WillReturnError(sql.ErrNoRows)
+			},
+			expected: expected{
+				task: nil,
+				err:  customError.ErrNotFound,
+			},
+		},
+		"InvalidId": {
 			id: "abc123",
 			input: &domain.Task{
 				Description: "Update Test Description",
@@ -308,7 +369,7 @@ func TestUpdate(t *testing.T) {
 			},
 			expected: expected{
 				task: nil,
-				err:  errors.New("failed to update a task: pq: invalid input syntax for type uuid: \"abc123\""),
+				err:  customError.ErrInternalServerError,
 			},
 		},
 	}
@@ -350,7 +411,7 @@ func TestDelete(t *testing.T) {
 		mockSetup func(sqlmock.Sqlmock, string)
 		expected  expected
 	}{
-		"ok": {
+		"Ok": {
 			id: "6a30b9b0-18bf-47b4-bd23-d72726864def",
 			mockSetup: func(m sqlmock.Sqlmock, id string) {
 				rows := sqlmock.NewRows([]string{"id"}).
@@ -369,7 +430,24 @@ func TestDelete(t *testing.T) {
 				err: nil,
 			},
 		},
-		"invalidId": {
+		"NotFound": {
+			id: "3e440171-0921-4c88-a7ec-13f4cdab0d69",
+			mockSetup: func(m sqlmock.Sqlmock, id string) {
+				sqlmock.NewRows([]string{"id"}).
+					AddRow("6a30b9b0-18bf-47b4-bd23-d72726864def")
+
+				m.ExpectQuery(regexp.QuoteMeta(
+					"DELETE FROM tasks WHERE id=$1 RETURNING id",
+				)).
+					WithArgs(id).
+					WillReturnError(sql.ErrNoRows)
+			},
+			expected: expected{
+				task: nil,
+				err:  customError.ErrNotFound,
+			},
+		},
+		"InvalidId": {
 			id: "abc123",
 			mockSetup: func(m sqlmock.Sqlmock, id string) {
 				sqlmock.NewRows([]string{"id"}).
@@ -383,7 +461,7 @@ func TestDelete(t *testing.T) {
 			},
 			expected: expected{
 				task: nil,
-				err:  errors.New("failed to delete a task: pq: invalid input syntax for type uuid: \"abc123\""),
+				err:  customError.ErrInternalServerError,
 			},
 		},
 	}

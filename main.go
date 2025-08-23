@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"log"
+	"log/slog"
 
 	"github.com/takumi616/go-restapi/application/usecase"
 	"github.com/takumi616/go-restapi/infrastructure/db"
@@ -11,9 +11,12 @@ import (
 	"github.com/takumi616/go-restapi/interface/gateway"
 	"github.com/takumi616/go-restapi/interface/handler"
 	"github.com/takumi616/go-restapi/shared/config"
+	"github.com/takumi616/go-restapi/shared/logger"
 )
 
 func run(ctx context.Context) error {
+	logger.Init()
+
 	dbCfg, err := config.NewDatabaseConfig()
 	if err != nil {
 		return err
@@ -41,7 +44,12 @@ func run(ctx context.Context) error {
 }
 
 func main() {
-	if err := run(context.Background()); err != nil {
-		log.Printf("Golang API server does not work correctly: %v", err)
+	ctx := context.Background()
+	if err := run(ctx); err != nil {
+		slog.ErrorContext(
+			ctx,
+			"golang API server does not work correctly",
+			slog.String("err", err.Error()),
+		)
 	}
 }

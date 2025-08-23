@@ -3,10 +3,12 @@ package repository
 import (
 	"context"
 	"database/sql"
-	"fmt"
+	"errors"
+	"log/slog"
 
 	"github.com/takumi616/go-restapi/domain"
 	"github.com/takumi616/go-restapi/infrastructure/db/repository/model"
+	customError "github.com/takumi616/go-restapi/shared/error"
 )
 
 type TaskRepository struct {
@@ -32,7 +34,8 @@ func (r *TaskRepository) Insert(ctx context.Context, task *domain.Task) (*domain
 	).Scan(&result.Id, &result.Title, &result.Description, &result.Status)
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to insert a task: %w", err)
+		slog.ErrorContext(ctx, err.Error())
+		return nil, customError.ErrInternalServerError
 	}
 
 	return model.ToDomain(&result), nil
@@ -41,7 +44,8 @@ func (r *TaskRepository) Insert(ctx context.Context, task *domain.Task) (*domain
 func (r *TaskRepository) SelectAll(ctx context.Context) ([]*domain.Task, error) {
 	rows, err := r.Db.QueryContext(ctx, "SELECT id, title, description, status FROM tasks")
 	if err != nil {
-		return nil, fmt.Errorf("failed to execute query: %w", err)
+		slog.ErrorContext(ctx, err.Error())
+		return nil, customError.ErrInternalServerError
 	}
 	defer rows.Close()
 
@@ -49,13 +53,15 @@ func (r *TaskRepository) SelectAll(ctx context.Context) ([]*domain.Task, error) 
 	for rows.Next() {
 		var taskResult model.TaskResult
 		if err := rows.Scan(&taskResult.Id, &taskResult.Title, &taskResult.Description, &taskResult.Status); err != nil {
-			return nil, fmt.Errorf("failed to copy columns: %w", err)
+			slog.ErrorContext(ctx, err.Error())
+			return nil, customError.ErrInternalServerError
 		}
 		taskList = append(taskList, model.ToDomain(&taskResult))
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("rows iteration error: %w", err)
+		slog.ErrorContext(ctx, err.Error())
+		return nil, customError.ErrInternalServerError
 	}
 
 	if len(taskList) == 0 {
@@ -72,7 +78,13 @@ func (r *TaskRepository) SelectById(ctx context.Context, id string) (*domain.Tas
 	).Scan(&taskRes.Id, &taskRes.Title, &taskRes.Description, &taskRes.Status)
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to select a task: %w", err)
+		if errors.Is(err, sql.ErrNoRows) {
+			slog.ErrorContext(ctx, err.Error())
+			return nil, customError.ErrNotFound
+		}
+
+		slog.ErrorContext(ctx, err.Error())
+		return nil, customError.ErrInternalServerError
 	}
 
 	return model.ToDomain(&taskRes), nil
@@ -90,7 +102,13 @@ func (r *TaskRepository) Update(ctx context.Context, id string, task *domain.Tas
 	).Scan(&result.Id, &result.Title, &result.Description, &result.Status)
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to update a task: %w", err)
+		if errors.Is(err, sql.ErrNoRows) {
+			slog.ErrorContext(ctx, err.Error())
+			return nil, customError.ErrNotFound
+		}
+
+		slog.ErrorContext(ctx, err.Error())
+		return nil, customError.ErrInternalServerError
 	}
 
 	return model.ToDomain(&result), nil
@@ -103,7 +121,13 @@ func (r *TaskRepository) Delete(ctx context.Context, id string) (*domain.Task, e
 	).Scan(&deletedId)
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to delete a task: %w", err)
+		if errors.Is(err, sql.ErrNoRows) {
+			slog.ErrorContext(ctx, err.Error())
+			return nil, customError.ErrNotFound
+		}
+
+		slog.ErrorContext(ctx, err.Error())
+		return nil, customError.ErrInternalServerError
 	}
 
 	task := &domain.Task{}
