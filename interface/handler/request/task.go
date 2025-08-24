@@ -4,7 +4,7 @@ import "github.com/takumi616/go-restapi/domain"
 
 type AddTaskReq struct {
 	Title       string `json:"title" validate:"required"`
-	Description string `json:"description" validate:"required"`
+	Description string `json:"description"`
 }
 
 func (a *AddTaskReq) ToDomain() *domain.Task {
@@ -15,7 +15,7 @@ func (a *AddTaskReq) ToDomain() *domain.Task {
 }
 
 type UpdateTaskReq struct {
-	Description string `json:"description" validate:"required"`
+	Description string `json:"description"`
 	Status      *bool  `json:"status" validate:"required"`
 }
 
